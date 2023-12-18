@@ -15,7 +15,7 @@
  * =============================================================================
  */
 import * as posedetection from '@tensorflow-models/pose-detection';
-//import * as scatter from 'scatter-gl';
+
 const DEFAULT_LINE_WIDTH = 2; 
 const DEFAULT_RADIUS = 4;
 const MODEL = posedetection.SupportedModels.MoveNet;
@@ -25,13 +25,7 @@ const SCORE_THRESHOLD = 0.3;
 export class RendererCanvas2d {
   constructor(canvas) {
     this.ctx = canvas.getContext('2d');
-    // this.scatterGLEl = document.querySelector('#scatter-gl-container');
-    // this.scatterGL = new scatter.ScatterGL(this.scatterGLEl, {
-    //   'rotateOnStart': true,
-    //   'selectEnabled': false,
-    //   'styles': {polyline: {defaultOpacity: 1, deselectedOpacity: 1}}
-    // });
-    // this.scatterGLHasInitialized = false;
+    
     this.videoWidth = canvas.width;
     this.videoHeight = canvas.height;
     //this.flip(this.videoWidth);
@@ -41,12 +35,6 @@ export class RendererCanvas2d {
     // Because the image from camera is mirrored, need to flip horizontally.
     this.ctx.translate(videoWidth, 0);
     this.ctx.scale(-1, 1);
-
-    // this.scatterGLEl.style =
-    //     `width: ${videoWidth}px; height: ${videoHeight}px;`;
-    // this.scatterGL.resize();
-
-    // this.scatterGLEl.style.display = 'none';
   }
 
   draw(rendererParams) {
@@ -95,8 +83,7 @@ export class RendererCanvas2d {
    * @param keypoints A list of keypoints.
    */
   drawKeypoints(keypoints) {
-    const keypointInd =
-        posedetection.util.getKeypointIndexBySide(MODEL);
+    const keypointInd = posedetection.util.getKeypointIndexBySide(MODEL);
     this.ctx.fillStyle = 'Red';
     this.ctx.strokeStyle = 'White';
     this.ctx.lineWidth = DEFAULT_LINE_WIDTH;
@@ -138,9 +125,7 @@ export class RendererCanvas2d {
     this.ctx.strokeStyle = 'White';
     this.ctx.lineWidth = DEFAULT_LINE_WIDTH;
 
-    posedetection.util.getAdjacentPairs(MODEL).forEach(([
-                                                                      i, j
-                                                                    ]) => {
+    posedetection.util.getAdjacentPairs(MODEL).forEach(([ i, j ]) => {
       const kp1 = keypoints[i];
       const kp2 = keypoints[j];
 
