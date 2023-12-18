@@ -15,7 +15,7 @@
  * =============================================================================
  */
 import * as posedetection from '@tensorflow-models/pose-detection';
-import * as scatter from 'scatter-gl';
+//import * as scatter from 'scatter-gl';
 const DEFAULT_LINE_WIDTH = 2; 
 const DEFAULT_RADIUS = 4;
 const MODEL = posedetection.SupportedModels.MoveNet;
@@ -25,28 +25,28 @@ const SCORE_THRESHOLD = 0.3;
 export class RendererCanvas2d {
   constructor(canvas) {
     this.ctx = canvas.getContext('2d');
-    this.scatterGLEl = document.querySelector('#scatter-gl-container');
-    this.scatterGL = new scatter.ScatterGL(this.scatterGLEl, {
-      'rotateOnStart': true,
-      'selectEnabled': false,
-      'styles': {polyline: {defaultOpacity: 1, deselectedOpacity: 1}}
-    });
-    this.scatterGLHasInitialized = false;
+    // this.scatterGLEl = document.querySelector('#scatter-gl-container');
+    // this.scatterGL = new scatter.ScatterGL(this.scatterGLEl, {
+    //   'rotateOnStart': true,
+    //   'selectEnabled': false,
+    //   'styles': {polyline: {defaultOpacity: 1, deselectedOpacity: 1}}
+    // });
+    // this.scatterGLHasInitialized = false;
     this.videoWidth = canvas.width;
     this.videoHeight = canvas.height;
-    this.flip(this.videoWidth, this.videoHeight);
+    //this.flip(this.videoWidth);
   }
 
-  flip(videoWidth, videoHeight) {
+  flip(videoWidth) {
     // Because the image from camera is mirrored, need to flip horizontally.
     this.ctx.translate(videoWidth, 0);
     this.ctx.scale(-1, 1);
 
-    this.scatterGLEl.style =
-        `width: ${videoWidth}px; height: ${videoHeight}px;`;
-    this.scatterGL.resize();
+    // this.scatterGLEl.style =
+    //     `width: ${videoWidth}px; height: ${videoHeight}px;`;
+    // this.scatterGL.resize();
 
-    this.scatterGLEl.style.display = 'none';
+    // this.scatterGLEl.style.display = 'none';
   }
 
   draw(rendererParams) {
