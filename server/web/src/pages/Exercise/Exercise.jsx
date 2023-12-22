@@ -3,13 +3,15 @@ import PropTypes from 'prop-types';
 import * as tf from '@tensorflow/tfjs';
 import * as poseDetection from '@tensorflow-models/pose-detection';
 import {RendererCanvas2d} from './renderer_canvas2d';
+import { DataFrame } from 'pandas-js';
+
 class Exercise extends Component {
   static defaultProps = {
     videoWidth: 640,
     videoHeight: 480,
     flipHorizontal: true,
     showVideo: true,
-    loadingText: 'Loading...please be patient...'
+    loadingText: 'Loading...please be patient...',
   }
 
   constructor(props) {
@@ -19,7 +21,27 @@ class Exercise extends Component {
       jointPositions: [],
       startTime: null,
       elapsedTime: 0,
-      lastExerciseElapsedTime: 0
+      lastExerciseElapsedTime: 0,
+      df: new DataFrame(),
+      keypoint_dict: {
+        'nose': 0,
+        'left_eye': 1,
+        'right_eye': 2,
+        'left_ear': 3,
+        'right_ear': 4,
+        'left_shoulder': 5,
+        'right_shoulder': 6,
+        'left_elbow': 7,
+        'right_elbow': 8,
+        'left_wrist': 9,
+        'right_wrist': 10,
+        'left_hip': 11,
+        'right_hip': 12,
+        'left_knee': 13,
+        'right_knee': 14,
+        'left_ankle': 15,
+        'right_ankle': 16
+      }
     };
   }
 
@@ -121,6 +143,7 @@ class Exercise extends Component {
       
       if (this.state.isSaving) {
         this.setState({ jointPositions: [...this.state.jointPositions, poses] });
+        this.populateDataFrame(poses);
         if (!this.state.startTime) {
           this.setState({ startTime: Date.now() }); // start timer when saving begins
         } else {
@@ -146,14 +169,32 @@ class Exercise extends Component {
     findPoseDetectionFrame()
   }
 
+  populateDataFrame(poses) {
+    const frameData = {};
+
+    for (const [jointName, jointIndex] of Object.entries(this.state.keypoint_dict)) {
+      const keypoint = poses[0].keypoints[jointIndex];
+      frameData[jointName + '_x'] = keypoint.x;
+      frameData[jointName + '_y'] = keypoint.y;
+      frameData[jointName + '_confidence'] = keypoint.score;
+    }
+    const frameDataFrame = new DataFrame([frameData])
+    //console.log(frameDataFrame.to_json())
+    this.setState({ df: this.state.df.append(frameDataFrame, true) })
+  }
+
   handleStartExercise = () => {
     this.setState({ isSaving: true });
   };
 
   handleStopExercise = () => {
     this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime });
-    console.log(this.state.jointPositions)
-  };
+    //console.log(this.state.jointPositions)
+    const json_joints = this.state.df.to_json({orient: 'index'})
+    console.log(json_joints)
+    //console.log(this.state.df.get("nose_x").toString())
+    //console.log(this.state.df.get("left_eye_x").to_json())
+  }; 
 
   render() {
     return (
