@@ -41,7 +41,9 @@ class Exercise extends Component {
         'right_knee': 14,
         'left_ankle': 15,
         'right_ankle': 16
-      }
+      },
+      referenceVideo: null,
+      referenceVideoPlaying: false
     };
   }
 
@@ -51,6 +53,10 @@ class Exercise extends Component {
 
   getVideo = elem => {
     this.video = elem
+  }
+
+  getReferenceVideo = elem => {
+    this.referenceVideo = elem
   }
 
   async componentDidMount() {
@@ -79,6 +85,7 @@ class Exercise extends Component {
     }
 
     this.detectPose()
+    this.loadReferenceVideo()
   }
 
   async setupCamera() {
@@ -113,6 +120,16 @@ class Exercise extends Component {
       }
     })
   }
+
+  loadReferenceVideo = async () => {
+    const referenceVideo = this.referenceVideo;
+    referenceVideo.src = '../public/E_ID15_Es1.mp4';
+    await this.referenceVideo.load();
+    referenceVideo.width = this.props.videoWidth; 
+    referenceVideo.height = this.props.videoHeight;
+    referenceVideo.loop = true; 
+    referenceVideo.addEventListener('ended', this.handleReferenceVideoEnded);
+  };
 
   detectPose() {
     const {videoWidth, videoHeight} = this.props
@@ -185,21 +202,40 @@ class Exercise extends Component {
 
   handleStartExercise = () => {
     this.setState({ isSaving: true });
+
+    if (this.referenceVideo) {
+      this.setState({ referenceVideoPlaying: true, referenceVideoTime: 0 });
+      this.referenceVideo.play().catch((error) => {
+        console.error('Error playing reference video:', error);
+      });
+    }
   };
 
-  handleStopExercise = () => {
+  handleStopExercise = async () => {
     this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime });
-    //console.log(this.state.jointPositions)
     const json_joints = this.state.df.to_json({orient: 'index'})
     console.log(json_joints)
     //console.log(this.state.df.get("nose_x").toString())
     //console.log(this.state.df.get("left_eye_x").to_json())
-  }; 
+    
+    if (this.referenceVideo) {
+      this.setState({ referenceVideoPlaying: false });
+      this.referenceVideo.pause();
+      this.referenceVideo.currentTime = 0;
+    }
+  };
+
+  handleReferenceVideoEnded = () => {
+    if (this.referenceVideoPlaying) {
+      this.referenceVideo.play();
+    }
+  };
 
   render() {
     return (
       <div>
         <div>
+          <video id="referenceVideo" ref={this.getReferenceVideo} />
           <video id="videoNoShow" playsInline ref={this.getVideo} style={{ visibility: 'hidden', display: 'none' }} />
           <canvas className="webcam" ref={this.getCanvas} />
         </div>
