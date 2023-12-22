@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import * as tf from '@tensorflow/tfjs';
 import * as poseDetection from '@tensorflow-models/pose-detection';
 import {RendererCanvas2d} from './renderer_canvas2d';
-
 class Exercise extends Component {
   static defaultProps = {
     videoWidth: 640,
@@ -15,6 +14,13 @@ class Exercise extends Component {
 
   constructor(props) {
     super(props, Exercise.defaultProps)
+    this.state = {
+      isSaving: false,
+      jointPositions: [],
+      startTime: null,
+      elapsedTime: 0,
+      lastExerciseElapsedTime: 0
+    };
   }
 
   getCanvas = elem => {
@@ -69,7 +75,10 @@ class Exercise extends Component {
       video: {
         facingMode: 'user',
         width: videoWidth,
-        height: videoHeight
+        height: videoHeight,
+        frameRate: {
+          ideal: 30,
+        }
       }
     })
 
@@ -109,6 +118,18 @@ class Exercise extends Component {
       let poses = null
 
       poses = await movenetModel.estimatePoses(video, {flipHorizontal: flipHorizontal, flipVertical: false})
+      
+      if (this.state.isSaving) {
+        this.setState({ jointPositions: [...this.state.jointPositions, poses] });
+        if (!this.state.startTime) {
+          this.setState({ startTime: Date.now() }); // start timer when saving begins
+        } else {
+          this.setState({ elapsedTime: (Date.now() - this.state.startTime) / 1000 }); // update elapsed time in seconds
+        }
+      } else {
+        this.setState({ lastExerciseElapsedTime: this.state.elapsedTime })
+        this.setState({ startTime: null, elapsedTime: 0 }); // reset timer when saving stops
+      }
 
       canvasContext.clearRect(0, 0, videoWidth, videoHeight)
 
@@ -118,22 +139,38 @@ class Exercise extends Component {
         canvasContext.translate(-videoWidth, 0)
         canvasContext.drawImage(video, 0, 0, videoWidth, videoHeight)
         this.renderer.drawResults(poses)
-        canvasContext.restore() 
+        canvasContext.restore()
       }
       requestAnimationFrame(findPoseDetectionFrame)
     } 
     findPoseDetectionFrame()
   }
 
+  handleStartExercise = () => {
+    this.setState({ isSaving: true });
+  };
+
+  handleStopExercise = () => {
+    this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime });
+    console.log(this.state.jointPositions)
+  };
+
   render() {
     return (
       <div>
         <div>
-          <video id="videoNoShow" playsInline ref={this.getVideo} style={{visibility:"hidden", display:"none"}} />
-          <canvas className="webcam" ref={this.getCanvas}/>
+          <video id="videoNoShow" playsInline ref={this.getVideo} style={{ visibility: 'hidden', display: 'none' }} />
+          <canvas className="webcam" ref={this.getCanvas} />
         </div>
+        <button onClick={this.handleStartExercise}>Start Exercise</button>
+        <button onClick={this.handleStopExercise}>Stop Exercise</button>
+        {!this.state.isSaving && this.state.finalElapsedTime ? (
+          <div>Total Exercise Time: {this.state.finalElapsedTime.toFixed(2)} seconds</div>
+        ) : (
+          <div>Elapsed Time: {this.state.elapsedTime.toFixed(2)} seconds</div>
+        )}
       </div>
-    )
+    );
   }
 }
 
