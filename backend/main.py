@@ -17,8 +17,6 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi_sessions.backends.implementations import InMemoryBackend
-from fastapi_sessions.frontends.implementations import SessionCookie, CookieParameters
 from keras_nlp.layers import TransformerEncoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -37,21 +35,7 @@ class SessionData(BaseModel):
     username: str
     sid: str
 
-
-cookie_params = CookieParameters()
-
-cookie = SessionCookie(
-    cookie_name="cookie",
-    identifier="general_verifier",
-    auto_error=True,
-    secret_key="DONOTUSE",
-    cookie_params=cookie_params,
-)
-
-# Backend object
-backend = InMemoryBackend[UUID, SessionData]()
-
-origins = ["http://localhost:8000", "localhost:8000"]
+origins = ["http://localhost:5173", "localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -101,7 +85,9 @@ models.Base.metadata.create_all(bind=engine)
 
 
 # Function to get the current user from the authentication token
-async def get_current_user(db: db_dependency, session_id: UUID = Depends(cookie)):
+async def get_current_user(request: Request, db: db_dependency):
+    session_id = request.cookies.get('session_token')
+    
     if not session_id:
         raise HTTPException(
             status_code=401, detail="Not authenticated. Session token not found."
@@ -121,7 +107,7 @@ async def get_current_user(db: db_dependency, session_id: UUID = Depends(cookie)
 
 
 # Endpoints
-@app.post("/signup/", response_model=UserCreateModel)
+@app.post("/api/signup/", response_model=UserCreateModel)
 async def signup(user: UserCreateBase, db: db_dependency):
     existing_user = (
         db.query(models.User).filter(models.User.username == user.username).first()
@@ -155,7 +141,7 @@ async def signup(user: UserCreateBase, db: db_dependency):
     return db_user
 
 
-@app.post("/login/")
+@app.post("/api/login/")
 async def login(user: UserLoginBase, db: db_dependency, response: Response):
     db_user = (
         db.query(models.User).filter(models.User.username == user.username).first()
@@ -171,12 +157,11 @@ async def login(user: UserLoginBase, db: db_dependency, response: Response):
     db.commit()
     db.refresh(db_user)
 
-    backend.create(session, SessionData(username=user.username, sid=str(session)))
-    cookie.attach_to_response(response, session)
-    return {"message": "Login successful"}
+    response.set_cookie(key="session_token", value=session, httponly=True)
+    return {"message": "Login successful", "session_id": str(session)}
 
 
-@app.get("/exercises/")
+@app.get("/api/exercises/")
 async def get_exercises(
     db: db_dependency, current_user: models.User = Depends(get_current_user)
 ):
@@ -199,7 +184,7 @@ async def get_exercises(
     return exercises
 
 
-@app.post("/clinical_score/{exercise_id}")
+@app.post("/api/clinical_score/{exercise_id}")
 async def clinical_score(
     exercise_id: str,
     db: db_dependency,
@@ -234,6 +219,9 @@ async def clinical_score(
     # Model loading
     model = tf.keras.models.load_model(path)
 
+    #csvStringIO = StringIO(csvString) #csvString is the string containing the csv file
+    #df = pd.read_csv(csvStringIO, sep=",", header=None)
+
     raw_data = pd.read_csv(file.file)
     prepared_data = prepare_data(raw_data, max_length)
     prediction = model.predict([prepared_data[0], prepared_data[1]])
@@ -266,18 +254,17 @@ async def clinical_score(
     db.commit()
     db.refresh(new_clinical_score)
 
-    result = {"Clinical_Score": prediction.tolist()}
+    result = {"clinical_score": prediction.tolist()}
 
     return JSONResponse(content=result)
 
 
-@app.post("/logout/")
-async def logout(
+@app.post("/api/logout/")
+def logout(
     response: Response,
     db: db_dependency,
     current_user: models.User = Depends(get_current_user),
 ):
-    backend.delete(current_user.session_token)
     response.delete_cookie("session_token")
 
     current_user.session_token = None
