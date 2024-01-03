@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { Box, Grid, Card, CardActionArea, CardMedia, CardContent, Typography } from '@mui/material';
 import TopBar from '../components/TopBar.jsx'
 import { Link } from 'react-router-dom';
+import { api } from '../api';
 
 export default function PatientHome() {
-    const [exercises, setExercises] = useState([]);
+    const [assignedExercises, setAssignedExercises] = useState([]);
 
     useEffect(() => {
-        fetch('https://6321b338fd698dfa29fd0ce0.mockapi.io/rehabai/api/v1/exercises')
-            .then(res => res.json())
-            .then(data => setExercises(data))
+        api.get('/api/exercises/')
+            .then(res => setAssignedExercises(res.data))
+            .catch(err => console.error(err));
     }, [])
 
     return (
@@ -25,7 +26,8 @@ export default function PatientHome() {
                     Assigned Exercises
                 </Typography>
                 <Grid container spacing={3}>
-                    {exercises.map((exercise, index) => (
+                {assignedExercises.map((exercise, index) => {
+                    return (
                         <Grid item xs={12} sm={6} md={3} key={index}>
                             <Card 
                                 raised
@@ -39,16 +41,16 @@ export default function PatientHome() {
                                 <Link 
                                     to={`/exercises/${exercise.id}`}
                                     state={{exercise}}
-                                    style={{all:"unset"}}
+                                    style={{ all:'unset' }}
                                 >
-                                <CardActionArea> 
-                                    <CardMedia
-                                        component="img"
-                                        height="250"
-                                        sx={{ objectFit: "contain" }}
-                                        image={exercise.image}
-                                        alt={exercise.name}
-                                    />
+                                    <CardActionArea> 
+                                        <CardMedia
+                                            component="img"
+                                            height="250"
+                                            sx={{ objectFit: "contain" }}
+                                            image={exercise.image_url}
+                                            alt={exercise.name}
+                                        />
                                         <CardContent>
                                             <Typography
                                                 gutterBottom
@@ -59,11 +61,12 @@ export default function PatientHome() {
                                                 {exercise.name}
                                             </Typography>
                                         </CardContent>
-                                </CardActionArea>   
+                                    </CardActionArea>   
                                 </Link>
                             </Card>
                         </Grid>
-                    ))}
+                    );
+                })}
                 </Grid>
             </Box>
         </div>

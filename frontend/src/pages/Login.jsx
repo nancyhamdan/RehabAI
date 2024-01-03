@@ -1,15 +1,23 @@
+import * as React from 'react';
 import { useState } from 'react';
-import { Stack, TextField, Button, Typography, InputAdornment, IconButton } from '@mui/material';
+import { Stack, TextField, Button, Typography, InputAdornment, IconButton, Snackbar } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import SpaIcon from '@mui/icons-material/Spa';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useNavigate } from "react-router-dom";
+import { api } from '../api';
+
+const Alert = React.forwardRef(function Alert(props, ref) {
+    return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+  });
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [open, setOpen] = useState(false);
     let navigate = useNavigate();
 
     const handleClickShowPassword = () => {
@@ -18,8 +26,9 @@ export default function Login() {
 
     const handleLogin = async () => {
         try {
-            //const response = await axios.post('/login', { username, password });
-            //setErrorMessage(error.response.data.message);
+            const response = await api.post('/api/login/', { username, password });
+            console.log(response);
+            setErrorMessage(response.data.detail);
             navigate('/exercises')
         } catch (error) {
             console.error('Failed to login:', error);
@@ -28,12 +37,21 @@ export default function Login() {
 
     const handleSignup = async () => {
         try {
-            const response = await axios.post('/signup', { username, password });
-            setErrorMessage(error.response.data.message);
-            navigate('/')
+            const response = await api.post('/api/signup/', { username, password });
+            setErrorMessage(response.data.detail);
+            //navigate('/')
+            setOpen(true);
         } catch (error) {
             console.error('Failed to signup:', error);
         }
+    };
+
+    const handleClose = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+
+        setOpen(false);
     };
 
     return (
@@ -81,6 +99,11 @@ export default function Login() {
                 <Button variant="contained" sx={{width: "12rem"}} onClick={handleLogin}>Login</Button>
             </Stack>
             {errorMessage && <Typography color="error">{errorMessage}</Typography>}
+            <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
+                <Alert onClose={handleClose} severity="success" sx={{ width: '100%' }}>
+                    Signup successful!
+                </Alert>
+            </Snackbar>
         </Stack>
     )
 }

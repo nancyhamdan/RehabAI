@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {Box, Avatar, Menu, MenuItem, ListItemIcon, Divider, IconButton, Tooltip} from '@mui/material'
 import {Settings, Logout} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../api'
 
 export default function AvatarMenu() {
   const navigateTo = useNavigate();
@@ -17,11 +18,12 @@ export default function AvatarMenu() {
     setAnchorEl(null);
   };
 
-  const handleCloseLogOut = () => {
+  const handleCloseLogOut = async () => {
       console.log("logged out")
       handleClose()
       try {
-        //const response = await axios.post('/logout');
+        const response = await api.post('/api/logout/');
+        console.log(response.data.message);
         navigateTo('/');
     } catch (error) {
         console.error('Failed to logout:', error);

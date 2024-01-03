@@ -4,7 +4,7 @@ import * as tf from '@tensorflow/tfjs'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import { DataFrame } from 'pandas-js'
 import DTW from 'dtw';
-import axios from 'axios';
+//import axios from 'axios';
 
 import { Box } from '@mui/material';
 import ControlButtons from '../../components/ControlButtons';
@@ -16,6 +16,7 @@ import VideoDisplay from '../../components/VideoDisplay';
 import {RendererCanvas2d} from './renderer_canvas2d'
 import { csvToJSON } from './utils'
 import {withRouter} from './withRouter.jsx'
+import { api } from '../../api';
 import './Exercise.css';
 
 class Exercise extends Component {
@@ -150,7 +151,7 @@ class Exercise extends Component {
     const referenceVideo = this.referenceVideo
     const exerciseInfo = this.props.router.location.state.exercise
     console.log(exerciseInfo)
-    referenceVideo.src = exerciseInfo.video
+    referenceVideo.src = exerciseInfo.video_url
     await this.referenceVideo.load()
     //referenceVideo.width = this.props.videoWidth
     //referenceVideo.height = this.props.videoHeight
@@ -302,7 +303,7 @@ class Exercise extends Component {
     const exerciseId = exerciseInfo.id
     console.log("Sending exercise id", exerciseId)
     try {
-      const response = await axios.post('https://6321b338fd698dfa29fd0ce0.mockapi.io/rehabai/api/v1/clinical_score', {
+      const response = await api.post(`/api/clinical_score/${exerciseId}`, {
         csv: this.state.exerciseDf.to_csv(),
       })
       if (response.data.length > 0) {
@@ -313,6 +314,22 @@ class Exercise extends Component {
     } catch (error) {
       console.error('Failed to fetch clinical score:', error)
     }
+    /*
+    const exerciseInfo = this.props.router.location.state.exercise
+    const exerciseId = exerciseInfo.id
+    console.log("Sending exercise id", exerciseId)
+    try {
+      const response = await axios.get('https://6321b338fd698dfa29fd0ce0.mockapi.io/rehabai/api/v1/clinical_score', {
+        csv: this.state.exerciseDf.to_csv(),
+      })
+      if (response.data.length > 0) {
+        this.setState({ clinicalScore: response.data[0].clinical_score })
+      } else {
+        console.error('No data returned from API')
+      }
+    } catch (error) {
+      console.error('Failed to fetch clinical score:', error)
+    }*/
   }
 
   handleStartExercise = () => {
