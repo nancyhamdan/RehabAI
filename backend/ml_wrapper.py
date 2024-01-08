@@ -58,3 +58,9 @@ def prepare_data(df, max_length):
     data = np.nan_to_num(data)
 
     return (data, padding_masks)
+
+
+def reorder_dataframe(df):
+    df_cols = get_dataframe_cols()
+    df = df.reindex(columns=df_cols)
+    return df

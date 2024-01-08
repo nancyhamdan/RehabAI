@@ -5,6 +5,7 @@ from uuid import uuid4, UUID
 import pandas as pd
 import os
 import tensorflow as tf
+from tslearn.metrics import dtw
 from fastapi import (
     FastAPI,
     UploadFile,
@@ -23,9 +24,11 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine
 from hashing import get_hashed_password, verify_password
-from ml_wrapper import prepare_data
+from ml_wrapper import prepare_data, reorder_dataframe
 import models
 from utils import is_exercise_assigned_to_user
+from typing import List
+from io import StringIO
 
 
 app = FastAPI()
@@ -34,6 +37,7 @@ app = FastAPI()
 class SessionData(BaseModel):
     username: str
     sid: str
+
 
 origins = ["http://localhost:5173", "localhost:5173"]
 
@@ -86,8 +90,8 @@ models.Base.metadata.create_all(bind=engine)
 
 # Function to get the current user from the authentication token
 async def get_current_user(request: Request, db: db_dependency):
-    session_id = request.cookies.get('session_token')
-    
+    session_id = request.cookies.get("session_token")
+
     if not session_id:
         raise HTTPException(
             status_code=401, detail="Not authenticated. Session token not found."
@@ -184,11 +188,27 @@ async def get_exercises(
     return exercises
 
 
+@app.post("/api/feedback/{exercise_id}")
+async def get_feedback(
+    exercise_id: str,
+    db: db_dependency,
+    referenceJointValues: List[float],
+    currentJointValues: List[float],
+    current_user: models.User = Depends(get_current_user)
+):
+        dtw = dtw(
+            currentJointValues, referenceJointValues
+        )
+        result = {"feedback_dtw": dtw.tolist()}
+
+        return JSONResponse(content=result)
+
+
 @app.post("/api/clinical_score/{exercise_id}")
 async def clinical_score(
     exercise_id: str,
     db: db_dependency,
-    file: UploadFile = File(...),
+    csvString: str,
     current_user: models.User = Depends(get_current_user),
 ):
     # Get the user's assigned exercises and check if the chosen exercise is among the exercises assigned to the user
@@ -219,11 +239,10 @@ async def clinical_score(
     # Model loading
     model = tf.keras.models.load_model(path)
 
-    #csvStringIO = StringIO(csvString) #csvString is the string containing the csv file
-    #df = pd.read_csv(csvStringIO, sep=",", header=None)
-
-    raw_data = pd.read_csv(file.file)
-    prepared_data = prepare_data(raw_data, max_length)
+    csvStringIO = StringIO(csvString) #csvString is the string containing the csv file
+    raw_data = pd.read_csv(csvStringIO, sep=",")
+    raw_data_ordered = reorder_dataframe(raw_data)
+    prepared_data = prepare_data(raw_data_ordered, max_length)
     prediction = model.predict([prepared_data[0], prepared_data[1]])
 
     # Checking if there are previous entries for the same user and exercise
