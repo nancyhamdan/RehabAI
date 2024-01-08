@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import * as tf from '@tensorflow/tfjs'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import { DataFrame } from 'pandas-js'
-import DTW from 'dtw';
+//import DTW from 'dtw';
 //import axios from 'axios';
 
 import { Box } from '@mui/material';
@@ -254,6 +254,24 @@ class Exercise extends Component {
       }
     });
   }
+
+  getDTWCost = async (currentJointValues, referenceJointValues) => {
+    const exerciseInfo = this.props.router.location.state.exercise
+    try {
+      const response = await api.post(`/api/feedback/${exerciseInfo.exercise_id}/`, {
+        referenceJointValues: referenceJointValues,
+        currentJointValues: currentJointValues,
+      })
+      if (response.data.length > 0) {
+        print(response.data[0].feedback_dtw)
+        return response.data[0].feedback_dtw
+      } else {
+        console.error('No data returned from DTW API')
+      }
+    } catch (error) {
+      console.error('Failed to fetch dtw:', error)
+    }
+   }
   
   compareJointsWithReference =  () => {
     const currentJointPositions = this.state.exerciseDf; 
@@ -273,8 +291,9 @@ class Exercise extends Component {
       const currentJointXValues = currentJointPositions.get(col_x).values.toArray();
       const referenceJointXValues = referenceFrames.get(col_x).values.toArray();
 
-      const dtwX = new DTW();
-      const costX = dtwX.compute(currentJointXValues, referenceJointXValues);
+      // const dtwX = new DTW();
+      //const costX = dtwX.compute(currentJointXValues, referenceJointXValues);
+      const costX = this.getDTWCost(currentJointXValues, referenceJointXValues);
       console.log(`cost ${jointName}_x = ${costX}`)
       if (costX > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} horizontally`, index: this.state.feedbackMessages.length})
@@ -284,8 +303,9 @@ class Exercise extends Component {
       const currentJointYValues = currentJointPositions.get(col_y).values.toArray();
       const referenceJointYValues = referenceFrames.get(col_y).values.toArray();
 
-      const dtwY = new DTW();
-      const costY = dtwY.compute(currentJointYValues, referenceJointYValues);
+      //const dtwY = new DTW();
+      //const costY = dtwY.compute(currentJointYValues, referenceJointYValues);
+      const costY = this.getDTWCost(currentJointYValues, referenceJointYValues);
       console.log(`cost ${jointName}_y = ${costY}`)
       if (costY > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} vertically`, index: this.state.feedbackMessages.length})
@@ -300,11 +320,11 @@ class Exercise extends Component {
 
   fetchClinicalScore = async () => {
     const exerciseInfo = this.props.router.location.state.exercise
-    const exerciseId = exerciseInfo.id
+    const exerciseId = exerciseInfo.exercise_id
     console.log("Sending exercise id", exerciseId)
     try {
       const response = await api.post(`/api/clinical_score/${exerciseId}`, {
-        csv: this.state.exerciseDf.to_csv(),
+        csvString: this.state.exerciseDf.to_csv(),
       })
       if (response.data.length > 0) {
         this.setState({ clinicalScore: response.data[0].clinical_score })
