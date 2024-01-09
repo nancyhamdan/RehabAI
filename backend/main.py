@@ -27,7 +27,7 @@ from hashing import get_hashed_password, verify_password
 from ml_wrapper import prepare_data, reorder_dataframe
 import models
 from utils import is_exercise_assigned_to_user
-from typing import List
+from typing import List, Optional
 from io import StringIO
 
 
@@ -72,6 +72,10 @@ class UserLoginModel(UserLoginBase):
 
     class Config:
         orm_mode = True
+
+
+class CsvStringModel(BaseModel):
+    csvString: Optional[str]
 
 
 # database dependency
@@ -196,11 +200,12 @@ async def get_feedback(
     currentJointValues: List[float],
     current_user: models.User = Depends(get_current_user)
 ):
-        dtw = dtw(
+        dtw_value = dtw(
             currentJointValues, referenceJointValues
         )
-        result = {"feedback_dtw": dtw.tolist()}
-
+        #print(dtw_value)
+        result = {"feedback_dtw": [dtw_value]}
+        print(result["feedback_dtw"])
         return JSONResponse(content=result)
 
 
@@ -208,7 +213,7 @@ async def get_feedback(
 async def clinical_score(
     exercise_id: str,
     db: db_dependency,
-    csvString: str,
+    csv_data: CsvStringModel,
     current_user: models.User = Depends(get_current_user),
 ):
     # Get the user's assigned exercises and check if the chosen exercise is among the exercises assigned to the user
@@ -239,7 +244,7 @@ async def clinical_score(
     # Model loading
     model = tf.keras.models.load_model(path)
 
-    csvStringIO = StringIO(csvString) #csvString is the string containing the csv file
+    csvStringIO = StringIO(csv_data.csvString) #csvString is the string containing the csv file
     raw_data = pd.read_csv(csvStringIO, sep=",")
     raw_data_ordered = reorder_dataframe(raw_data)
     prepared_data = prepare_data(raw_data_ordered, max_length)

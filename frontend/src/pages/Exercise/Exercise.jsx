@@ -257,14 +257,16 @@ class Exercise extends Component {
 
   getDTWCost = async (currentJointValues, referenceJointValues) => {
     const exerciseInfo = this.props.router.location.state.exercise
+    
     try {
       const response = await api.post(`/api/feedback/${exerciseInfo.exercise_id}/`, {
         referenceJointValues: referenceJointValues,
-        currentJointValues: currentJointValues,
+        currentJointValues: currentJointValues
       })
-      if (response.data.length > 0) {
-        print(response.data[0].feedback_dtw)
-        return response.data[0].feedback_dtw
+      console.log(response.data)
+      if (response.data) {
+        console.log(response.data.feedback_dtw[0])
+        return response.data.feedback_dtw[0]
       } else {
         console.error('No data returned from DTW API')
       }
@@ -273,7 +275,7 @@ class Exercise extends Component {
     }
    }
   
-  compareJointsWithReference =  () => {
+  compareJointsWithReference =  async () => {
     const currentJointPositions = this.state.exerciseDf; 
     const currentFrameIndex = currentJointPositions.length - 1; 
     const referenceFrames = this.state.referenceDF.iloc([0, currentFrameIndex + 1]);
@@ -293,7 +295,7 @@ class Exercise extends Component {
 
       // const dtwX = new DTW();
       //const costX = dtwX.compute(currentJointXValues, referenceJointXValues);
-      const costX = this.getDTWCost(currentJointXValues, referenceJointXValues);
+      const costX = await this.getDTWCost(currentJointXValues, referenceJointXValues);
       console.log(`cost ${jointName}_x = ${costX}`)
       if (costX > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} horizontally`, index: this.state.feedbackMessages.length})
@@ -305,7 +307,7 @@ class Exercise extends Component {
 
       //const dtwY = new DTW();
       //const costY = dtwY.compute(currentJointYValues, referenceJointYValues);
-      const costY = this.getDTWCost(currentJointYValues, referenceJointYValues);
+      const costY = await this.getDTWCost(currentJointYValues, referenceJointYValues);
       console.log(`cost ${jointName}_y = ${costY}`)
       if (costY > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} vertically`, index: this.state.feedbackMessages.length})
@@ -326,30 +328,14 @@ class Exercise extends Component {
       const response = await api.post(`/api/clinical_score/${exerciseId}`, {
         csvString: this.state.exerciseDf.to_csv(),
       })
-      if (response.data.length > 0) {
-        this.setState({ clinicalScore: response.data[0].clinical_score })
+      if (response.data) {
+        this.setState({ clinicalScore: response.data.clinical_score[0] })
       } else {
         console.error('No data returned from API')
       }
     } catch (error) {
       console.error('Failed to fetch clinical score:', error)
     }
-    /*
-    const exerciseInfo = this.props.router.location.state.exercise
-    const exerciseId = exerciseInfo.id
-    console.log("Sending exercise id", exerciseId)
-    try {
-      const response = await axios.get('https://6321b338fd698dfa29fd0ce0.mockapi.io/rehabai/api/v1/clinical_score', {
-        csv: this.state.exerciseDf.to_csv(),
-      })
-      if (response.data.length > 0) {
-        this.setState({ clinicalScore: response.data[0].clinical_score })
-      } else {
-        console.error('No data returned from API')
-      }
-    } catch (error) {
-      console.error('Failed to fetch clinical score:', error)
-    }*/
   }
 
   handleStartExercise = () => {
