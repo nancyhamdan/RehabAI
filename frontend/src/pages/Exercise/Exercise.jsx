@@ -339,18 +339,41 @@ class Exercise extends Component {
   }
 
   handleStartExercise = () => {
-    this.setState({ isSaving: true, isExerciseFinished: false, feedbackMessages: [] })
+    // Start a 10 second countdown
+    let countdown = 10;
+    this.setState({ countdown });
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      this.setState({ countdown });
+      if (countdown < 0) {
+        clearInterval(countdownInterval);
+        // Start the exercise after 10 seconds
+        this.setState({ isSaving: true, isExerciseFinished: false, feedbackMessages: [] })
 
-    if (this.referenceVideo) {
-      this.setState({ referenceVideoPlaying: true, referenceVideoTime: 0 })
-      this.referenceVideo.play().catch((error) => {
-        console.error('Error playing reference video:', error)
-      })
-    }
+        if (this.referenceVideo) {
+          this.setState({ referenceVideoPlaying: true, referenceVideoTime: 0 })
+          this.referenceVideo.play().catch((error) => {
+            console.error('Error playing reference video:', error)
+          })
+        }
+
+        // Stop the exercise after 30 seconds
+        const exerciseTimer = setTimeout(() => {
+          this.handleStopExercise();
+        }, 30000);
+        this.setState({ exerciseTimer });
+      }
+    }, 1000);
   }
 
   handleStopExercise = async () => {
-    this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime })
+    this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime, countdown: null })
+    // Clear the exercise timer
+    if (this.state.exerciseTimer) {
+      clearTimeout(this.state.exerciseTimer);
+      this.setState({ exerciseTimer: null });
+    }
+
     const json_joints = this.state.exerciseDf.to_json({orient: 'columns'})
     console.log(json_joints)
     console.log("total frames", this.state.exerciseDf.length)
@@ -397,6 +420,7 @@ class Exercise extends Component {
             isSaving={this.state.isSaving}
             finalElapsedTime={Number(this.state.finalElapsedTime) ? Number(this.state.finalElapsedTime.toFixed(2)) : 0}
             elapsedTime={Number(this.state.elapsedTime) ? Number(this.state.elapsedTime.toFixed(2)) : 0}
+            countdown={this.state.countdown}
           />
           <FeedbackDisplay
             currentFeedbackMessages={this.state.currentFeedbackMessages}
