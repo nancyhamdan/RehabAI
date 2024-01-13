@@ -28,21 +28,21 @@ export default function Login() {
         try {
             const response = await api.post('/api/login/', { username, password });
             console.log(response);
-            setErrorMessage(response.data.detail);
             navigate('/exercises')
         } catch (error) {
             console.error('Failed to login:', error);
+            setErrorMessage(error.response.data.detail);
         }
     };
 
     const handleSignup = async () => {
         try {
             const response = await api.post('/api/signup/', { username, password });
-            setErrorMessage(response.data.detail);
-            //navigate('/')
+            console.log(response);
             setOpen(true);
         } catch (error) {
             console.error('Failed to signup:', error);
+            setErrorMessage(error.response.data.detail);
         }
     };
 

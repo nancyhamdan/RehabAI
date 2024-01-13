@@ -321,20 +321,26 @@ class Exercise extends Component {
   }
 
   fetchClinicalScore = async () => {
-    const exerciseInfo = this.props.router.location.state.exercise
-    const exerciseId = exerciseInfo.exercise_id
-    console.log("Sending exercise id", exerciseId)
-    try {
-      const response = await api.post(`/api/clinical_score/${exerciseId}`, {
-        csvString: this.state.exerciseDf.to_csv(),
-      })
-      if (response.data) {
-        this.setState({ clinicalScore: response.data.clinical_score[0] })
-      } else {
-        console.error('No data returned from API')
+    const feedbackThreshold = 75
+    if (this.state.feedbackMessages.length > feedbackThreshold) {
+      this.setState({ clinicalScore: 100 });
+    } else {
+      const exerciseInfo = this.props.router.location.state.exercise
+      const exerciseId = exerciseInfo.exercise_id
+      console.log("Sending exercise id", exerciseId)
+      try {
+        const response = await api.post(`/api/clinical_score/${exerciseId}`, {
+          csvString: this.state.exerciseDf.to_csv(),
+        })
+        if (response.data) {
+          this.setState({ clinicalScore: response.data.clinical_score[0][0] })
+          console.log(response.data.clinical_score[0][0])
+        } else {
+          console.error('No data returned from API')
+        }
+      } catch (error) {
+        console.error('Failed to fetch clinical score:', error)
       }
-    } catch (error) {
-      console.error('Failed to fetch clinical score:', error)
     }
   }
 
@@ -348,7 +354,7 @@ class Exercise extends Component {
       if (countdown < 0) {
         clearInterval(countdownInterval);
         // Start the exercise after 10 seconds
-        this.setState({ isSaving: true, isExerciseFinished: false, feedbackMessages: [] })
+        this.setState({ isSaving: true, isExerciseFinished: false, currentFeedbackMessages: [], feedbackMessages: [], clinicalScore: null })
 
         if (this.referenceVideo) {
           this.setState({ referenceVideoPlaying: true, referenceVideoTime: 0 })
@@ -423,6 +429,7 @@ class Exercise extends Component {
             countdown={this.state.countdown}
           />
           <FeedbackDisplay
+            isSaving={this.state.isSaving}
             currentFeedbackMessages={this.state.currentFeedbackMessages}
             feedbackMessages={this.state.feedbackMessages} 
             isExerciseFinished={this.state.isExerciseFinished}
