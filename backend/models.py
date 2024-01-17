@@ -1,4 +1,6 @@
 ## tables for sqlite application
+
+# Importing necessary libraries
 from datetime import datetime
 from database import Base
 from sqlalchemy import (
@@ -12,22 +14,26 @@ from sqlalchemy import (
 from database import SessionLocal
 
 
+# Define the User table
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "users"  # Name of the table in the database
 
     id = Column(
         Integer,
         primary_key=True,
         index=True,
     )
-    user_id = Column(String, unique=True)
-    username = Column(String, unique=True)
-    password = Column(String)
-    session_token = Column("session_token", String, unique=True)
+    user_id = Column(String, unique=True)  # Unique user ID
+    username = Column(String, unique=True)  # Unique username
+    password = Column(String)  # Password (should be hashed before storage)
+    session_token = Column(
+        "session_token", String, unique=True
+    )  # Unique session token for user authentication
 
 
+# Define the Exercise table
 class Exercise(Base):
-    __tablename__ = "exercises"
+    __tablename__ = "exercises"  # Name of the table in the database
 
     id = Column(Integer, primary_key=True, index=True)
     exercise_id = Column(Integer, unique=True)  # ID of the exercise
@@ -38,82 +44,37 @@ class Exercise(Base):
     csv = Column(String)  # csv file of ground truth
 
 
+# Define the Assigned Exercises table
 class AssignedExercise(Base):
-    __tablename__ = "assigned_exercises"
+    __tablename__ = "assigned_exercises"  # Name of the table in the database
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    exercise_id = Column(Integer, ForeignKey("exercises.name"))
-    date = Column(DateTime, default=datetime.now())
+    id = Column(Integer, primary_key=True, index=True)  # unique ID
+    user_id = Column(
+        Integer, ForeignKey("users.user_id")
+    )  # Foreign key referencing the 'user_id' column of the 'users' table
+    exercise_id = Column(
+        Integer, ForeignKey("exercises.name")
+    )  # Foreign key referencing the 'name' column of the 'exercises' table
+    date = Column(
+        DateTime, default=datetime.now()
+    )  # Date when the exercise was assigned
 
 
+# Define the Progress Tracker table
 class ProgressTracker(Base):
-    __tablename__ = "progress_tracker"
+    __tablename__ = "progress_tracker"  # Name of the table in the database
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    exercise_id = Column(Integer, ForeignKey("exercises.name"))
-    date = Column(DateTime, default=datetime.now())
-    score = Column(Float)
+    id = Column(Integer, primary_key=True, index=True)  # unique ID
+    user_id = Column(
+        Integer, ForeignKey("users.user_id")
+    )  # Foreign key referencing the 'user_id' column of the 'users' table
+    exercise_id = Column(
+        Integer, ForeignKey("exercises.name")
+    )  # Foreign key referencing the 'name' column of the 'exercises' table
+    date = Column(
+        DateTime, default=datetime.now()
+    )  # Date when the exercise was performed
+    score = Column(Float)  # Score of the exercise
     performance_count = Column(
         Integer, default=0
     )  # Number of times the exercise has been performed
-
-
-# ''' Exercise Table [Database needs to be created first]'''
-# exercises_data = [
-#     {
-#         "id": "1",
-#         "exercise_id": "Es1",
-#         "name": "Exercise 1",
-#         "description": "....",
-#         "image_url": "../public/E_ID15_ES1.png",
-#         "video_url": "../public/E_ID15_ES1.mp4",
-#         "csv": "../public/E_ID15_ES1.csv",
-#     },
-#     {
-#         "id": "2",
-#         "exercise_id": "Es2",
-#         "name": "Exercise 2",
-#         "description": "....",
-#         "image_url": "../public/E_ID12_ES2.png",
-#         "video_url": "../public/E_ID12_ES2.mp4",
-#         "csv": "../public/E_ID12_ES2.csv",
-#     },
-#     {
-#         "id": "3",
-#         "exercise_id": "Es3",
-#         "name": "Exercise 3",
-#         "description": "....",
-#         "image_url": "../public/E_ID12_ES3.png",
-#         "video_url": "../public/E_ID12_ES3.mp4",
-#         "csv": "../public/E_ID12_ES3.csv",
-#     },
-#     {
-#         "id": "4",
-#         "exercise_id": "Es4",
-#         "name": "Exercise 4",
-#         "description": "....",
-#         "image_url": "../public/E_ID1_ES4.png",
-#         "video_url": "../public/E_ID1_ES4.mp4",
-#         "csv": "../public/E_ID1_ES4.csv",
-#     },
-#     {
-#         "id": "5",
-#         "exercise_id": "Es5",
-#         "name": "Exercise 5",
-#         "description": "....",
-#         "image_url": "../public/E_ID1_ES5.png",
-#         "video_url": "../public/E_ID1_ES5.mp4",
-#         "csv": "../public/E_ID1_ES5.csv",
-#     },
-# ]
-
-# # Create a session and add exercises to the database
-# with SessionLocal() as session:
-#     for ex_data in exercises_data:
-#         exercise_data_instance = Exercise(**ex_data)
-#         session.add(exercise_data_instance)
-
-#     # Commit the changes
-#     session.commit()

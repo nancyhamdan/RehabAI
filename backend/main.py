@@ -1,3 +1,4 @@
+# Importing the necessary libraries
 from datetime import datetime
 from typing import Annotated
 from uuid import uuid4, UUID
@@ -25,36 +26,42 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from hashing import get_hashed_password, verify_password
 from ml_wrapper import prepare_data, reorder_dataframe
+from data_wrapper import initialize_db
 import models
 from utils import is_exercise_assigned_to_user
 from typing import List, Optional
 from io import StringIO
 
-
+# Create an instance of the FastAPI class
 app = FastAPI()
 
 
+# Define the SessionData model
 class SessionData(BaseModel):
     username: str
     sid: str
 
 
+# Define the list of allowed origins for CORS
 origins = ["http://localhost:5173", "localhost:5173"]
 
+# Add CORS middleware to the FastAPI application
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,  # Allow the defined origins
+    allow_credentials=True,  # Allow cookies to be included in the requests
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 
+# Define the UserCreateBase model
 class UserCreateBase(BaseModel):
     username: str
     password: str
 
 
+# Define the UserCreateModel model
 class UserCreateModel(UserCreateBase):
     id: int
 
@@ -62,11 +69,13 @@ class UserCreateModel(UserCreateBase):
         orm_mode = True
 
 
+# Define the UserLoginBase model
 class UserLoginBase(BaseModel):
     username: str
     password: str
 
 
+# Define the UserLoginModel model
 class UserLoginModel(UserLoginBase):
     id: int
 
@@ -74,28 +83,34 @@ class UserLoginModel(UserLoginBase):
         orm_mode = True
 
 
+# Define the CsvStringModel model
 class CsvStringModel(BaseModel):
     csvString: Optional[str]
 
 
-# database dependency
+# Define a database dependency
 def get_db():
-    db = SessionLocal()
+    db = SessionLocal()  # Create a new database session
     try:
-        yield db
+        yield db  # Yield the database session to the dependency
     finally:
-        db.close()
+        db.close()  # Close the database session
 
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
+# Create all the tables in the database
 models.Base.metadata.create_all(bind=engine)
+
+initialize_db()
 
 
 # Function to get the current user from the authentication token
 async def get_current_user(request: Request, db: db_dependency):
+    # Get the session token from the cookies
     session_id = request.cookies.get("session_token")
 
+    # If there is no session token, raise an exception
     if not session_id:
         raise HTTPException(
             status_code=401, detail="Not authenticated. Session token not found."
@@ -106,6 +121,7 @@ async def get_current_user(request: Request, db: db_dependency):
         .filter(models.User.session_token == str(session_id))
         .first()
     )
+    # If there is no user with the matching session token, raise an exception
     if not user:
         print(session_id)
         raise HTTPException(
@@ -115,19 +131,26 @@ async def get_current_user(request: Request, db: db_dependency):
 
 
 # Endpoints
+
+
 @app.post("/api/signup/", response_model=UserCreateModel)
 async def signup(user: UserCreateBase, db: db_dependency):
+    # Check if the username already exists
     existing_user = (
         db.query(models.User).filter(models.User.username == user.username).first()
     )
+    # If the username already exists, raise an exception
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
 
+    # Hash the password
     hashed_password = get_hashed_password(user.password)
 
+    # Generate a unique user ID
     user_count = db.query(models.User).count() + 1
     u_id = f"U{user_count}"
 
+    # Create a new user
     db_user = models.User(
         user_id=u_id, username=user.username, password=hashed_password
     )
@@ -142,6 +165,7 @@ async def signup(user: UserCreateBase, db: db_dependency):
         )
         db.add(db_assigned_exercise)
 
+    # Add the new user to the database
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -151,11 +175,14 @@ async def signup(user: UserCreateBase, db: db_dependency):
 
 @app.post("/api/login/")
 async def login(user: UserLoginBase, db: db_dependency, response: Response):
+    # Check if the username exists in the database
     db_user = (
         db.query(models.User).filter(models.User.username == user.username).first()
     )
+    # If the username does not exist, raise an exception
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
+    # If the password is incorrect, raise an exception
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Incorrect password")
 
@@ -198,15 +225,14 @@ async def get_feedback(
     db: db_dependency,
     referenceJointValues: List[float],
     currentJointValues: List[float],
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
 ):
-        dtw_value = dtw(
-            currentJointValues, referenceJointValues
-        )
-        #print(dtw_value)
-        result = {"feedback_dtw": [dtw_value]}
-        print(result["feedback_dtw"])
-        return JSONResponse(content=result)
+    # Calculating the Dynamic Time Warping (DTW) distance between the current and reference joint values
+    dtw_value = dtw(currentJointValues, referenceJointValues)
+    # Preparing the result
+    result = {"feedback_dtw": [dtw_value]}
+    print(result["feedback_dtw"])
+    return JSONResponse(content=result)
 
 
 @app.post("/api/clinical_score/{exercise_id}")
@@ -220,6 +246,7 @@ async def clinical_score(
     if not is_exercise_assigned_to_user(db, current_user.user_id, exercise_id):
         raise HTTPException(status_code=403, detail="Exercise not assigned to user")
 
+    # Define the directory and paths for the models
     models_directory = "DNN/"
 
     model_paths = {
@@ -237,17 +264,20 @@ async def clinical_score(
         "Es4": 1988,
         "Es5": 1022,
     }
-
+    # Load the model
     path = os.path.join(models_directory, model_paths[exercise_id])
     max_length = max_length_mapping.get(exercise_id, 0)
-
-    # Model loading
     model = tf.keras.models.load_model(path)
 
-    csvStringIO = StringIO(csv_data.csvString) #csvString is the string containing the csv file
+    # Prepare the data
+    csvStringIO = StringIO(
+        csv_data.csvString
+    )  # csvString is the string containing the csv file
     raw_data = pd.read_csv(csvStringIO, sep=",")
     raw_data_ordered = reorder_dataframe(raw_data)
     prepared_data = prepare_data(raw_data_ordered, max_length)
+
+    # Make a prediction
     prediction = model.predict([prepared_data[0], prepared_data[1]])
 
     # Checking if there are previous entries for the same user and exercise
@@ -261,6 +291,7 @@ async def clinical_score(
         .first()
     )
 
+    # Update the performance count
     if previous_entry:
         performance_count = previous_entry.performance_count + 1
     else:
@@ -289,8 +320,10 @@ def logout(
     db: db_dependency,
     current_user: models.User = Depends(get_current_user),
 ):
+    # Delete the session token from the response cookie
     response.delete_cookie("session_token")
 
+    # Remove the session token from the user
     current_user.session_token = None
     db.commit()
 
