@@ -78,48 +78,43 @@ def prepare_data(df, max_length, exercise_id):
         
     data = []
     padding_masks = []
-    for _, row in df.iterrows():
-        joint_positions_path = row['joint_positions']
-        if joint_positions_path is np.NAN:
-            continue
+    joint_positions_data = None
+    # Load joint positions data if needed
+    if use_joint_positions:
+        joint_positions_data = df
+        joint_positions_data = joint_positions_data.drop(cols_drop, axis=1)
+        if smooth_joint_positions:
+            for col in joint_positions_data.columns:
+                joint_positions_data[col] = joint_positions_data[col].rolling(smoothing_window).mean()
+        joint_positions_data = joint_positions_data.to_numpy()
 
-        joint_positions_data = None
-        # Load joint positions data if needed
-        if use_joint_positions:
-            joint_positions_data = df
-            joint_positions_data = joint_positions_data.drop(cols_drop, axis=1)
-            if smooth_joint_positions:
-                for col in joint_positions_data.columns:
-                    joint_positions_data[col] = joint_positions_data[col].rolling(smoothing_window).mean()
-            joint_positions_data = joint_positions_data.to_numpy()
+    joint_features_data = None
+    # Load joint features data if needed
+    if use_joint_features:
+        joint_features_data = get_es1_features(df)
+        if smooth_joint_features:
+            for col in joint_features_data.columns:
+                joint_features_data[col] = joint_features_data[col].rolling(smoothing_window).mean()
+        joint_features_data = joint_features_data.to_numpy()
 
-        joint_features_data = None
-        # Load joint features data if needed
-        if use_joint_features:
-            joint_features_data = get_es1_features(df)
-            if smooth_joint_features:
-                for col in joint_features_data.columns:
-                    joint_features_data[col] = joint_features_data[col].rolling(smoothing_window).mean()
-            joint_features_data = joint_features_data.to_numpy()
+    data_to_use = None
+    # Combine data if both are needed
+    if use_joint_positions:
+        data_to_use = joint_positions_data
+    else:
+        data_to_use = joint_features_data
 
-        data_to_use = None
-        # Combine data if both are needed
-        if use_joint_positions:
-            data_to_use = joint_positions_data
-        else:
-            data_to_use = joint_features_data
+    # Pad data to fixed length and create padding masks
+    padding_length = max_length - live_video_frames
+    padding_mask = np.zeros((live_video_frames + padding_length))
+    padding_mask[-padding_length:] = 1 # Set padding elements to 1
 
-        # Pad data to fixed length and create padding masks
-        padding_length = max_length - live_video_frames
-        padding_mask = np.zeros((live_video_frames + padding_length))
-        padding_mask[-padding_length:] = 1 # Set padding elements to 1
+    # Pad data with zeros
+    data_to_use_padded = np.pad(data_to_use, ((0, padding_length), (0, 0)), mode='constant', constant_values=0)
 
-        # Pad data with zeros
-        data_to_use_padded = np.pad(data_to_use, ((0, padding_length), (0, 0)), mode='constant', constant_values=0)
-
-        data.append(data_to_use_padded)
-        padding_masks.append(padding_mask)
-
+    data.append(data_to_use_padded)
+    padding_masks.append(padding_mask)
+        
     data = np.array(data)
     padding_masks = np.array(padding_masks)
 

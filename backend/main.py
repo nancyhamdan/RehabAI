@@ -267,7 +267,9 @@ async def clinical_score(
     # Load the model
     path = os.path.join(models_directory, model_paths[exercise_id])
     max_length = max_length_mapping.get(exercise_id, 0)
+    print("starting model load")
     model = tf.keras.models.load_model(path)
+    print("finished model load")
 
     # Prepare the data
     csvStringIO = StringIO(
@@ -275,7 +277,9 @@ async def clinical_score(
     )  # csvString is the string containing the csv file
     raw_data = pd.read_csv(csvStringIO, sep=",")
     raw_data_ordered = reorder_dataframe(raw_data)
+    print("starting prepare data")
     prepared_data = prepare_data(raw_data_ordered, max_length, exercise_id)
+    print("ending prepare data")
 
     # Make a prediction
     prediction = model.predict([prepared_data[0], prepared_data[1]])
