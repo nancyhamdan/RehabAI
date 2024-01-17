@@ -1,11 +1,12 @@
+// Importing necessary libraries and components
 import {Component} from 'react'
 import PropTypes from 'prop-types'
 import * as tf from '@tensorflow/tfjs'
+import '@tensorflow/tfjs-backend-webgl'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import { DataFrame } from 'pandas-js'
-//import DTW from 'dtw';
-//import axios from 'axios';
 
+// Custom components
 import { Box } from '@mui/material';
 import ControlButtons from '../../components/ControlButtons';
 import FeedbackDisplay from '../../components/FeedbackDisplay.jsx';
@@ -13,13 +14,21 @@ import TimeDisplay from '../../components/TimeDisplay';
 import TopBar from '../../components/TopBar.jsx'
 import VideoDisplay from '../../components/VideoDisplay';
 
+// Renderer and utility functions
 import {RendererCanvas2d} from './renderer_canvas2d'
 import { csvToJSON } from './utils'
+
+// Higher order component for routing
 import {withRouter} from './withRouter.jsx'
+
+// API functions
 import { api } from '../../api';
-import './Exercise.css';
+
+// CSS styles
+//import './Exercise.css';
 
 class Exercise extends Component {
+  // Default properties for the Exercise component
   static defaultProps = {
     videoWidth: 640,
     videoHeight: 480,
@@ -31,15 +40,15 @@ class Exercise extends Component {
 
   constructor(props) {
     super(props, Exercise.defaultProps)
+    // Initial state of the component
     this.state = {
       isSaving: false,
       isExerciseFinished: false,
-      jointPositions: [],
       startTime: null,
       elapsedTime: 0,
       lastExerciseElapsedTime: 0,
-      exerciseDf: new DataFrame(),
-      keypoint_dict: {
+      exerciseDf: new DataFrame(), // DataFrame to store exercise data
+      keypoint_dict: { // Dictionary to map keypoints to their indices
         'nose': 0,
         'left_eye': 1,
         'right_eye': 2,
@@ -60,9 +69,9 @@ class Exercise extends Component {
       },
       referenceVideo: null,
       referenceVideoPlaying: false,
-      referenceDF: null,
-      feedbackMessages: [],
-      currentFeedbackMessages: [],
+      referenceDF: null, // DataFrame to store reference data
+      feedbackMessages: [], // Array to store all feedback messages
+      currentFeedbackMessages: [], // Array to store current feedback messages
       videoLoaded: false,
       referenceVideoLoaded: false,
       clinicalScore: null,
@@ -81,6 +90,7 @@ class Exercise extends Component {
     this.referenceVideo = elem
   }
 
+  // Method to setup the camera, pose detector, and renderer upon component mount
   async componentDidMount() {
     try {
       await this.setupCamera()
@@ -92,20 +102,23 @@ class Exercise extends Component {
 
     try {
       const detectorConfig = {modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER}
+      
+      // Set the tf backend
       console.log("awaiting tf")
+      await tf.setBackend('webgl')
       await tf.ready()
+      console.log("using tf backend:", tf.getBackend());
       console.log("tf setup")
+
+      // Load the MoveNet pose detector
       this.movenet = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig)
       console.log("movenet setup")
 
+      // Create an instance of the canvas renderer
       this.renderer = new RendererCanvas2d(this.canvas)
       console.log("renderer setup")
     } catch (error) {
       throw new Error(error)
-    } finally {
-    //   setTimeout(() => {
-    //     this.setState({loading: false})
-    //   }, 200)
     }
 
     this.detectPose()
@@ -113,6 +126,7 @@ class Exercise extends Component {
     this.loadReferenceJointPositions()
   }
 
+  // Method to setup the camera
   async setupCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error(
@@ -124,6 +138,7 @@ class Exercise extends Component {
     video.width = videoWidth
     video.height = videoHeight
 
+    // Get the video stream from the webcam
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
@@ -138,6 +153,7 @@ class Exercise extends Component {
 
     video.srcObject = stream
 
+    // Return a promise that resolves when the video is loaded
     return new Promise(resolve => {
       video.onloadedmetadata = () => {
         video.play()
@@ -147,19 +163,19 @@ class Exercise extends Component {
     })
   }
 
+  // Method to load the reference video
   loadReferenceVideo = async () => {
     const referenceVideo = this.referenceVideo
     const exerciseInfo = this.props.router.location.state.exercise
     console.log(exerciseInfo)
     referenceVideo.src = exerciseInfo.video_url
     await this.referenceVideo.load()
-    //referenceVideo.width = this.props.videoWidth
-    //referenceVideo.height = this.props.videoHeight
     referenceVideo.loop = true
     referenceVideo.addEventListener('ended', this.handleReferenceVideoEnded)
     this.setState({ referenceVideoLoaded: true })
   }
 
+  // Method to load the reference joint positions from the CSV file
   loadReferenceJointPositions = async () => {
     try {
       const exerciseInfo = this.props.router.location.state.exercise
@@ -186,32 +202,36 @@ class Exercise extends Component {
     this.poseDetectionFrame(canvasContext)
   }
 
+  // Method to detect pose in each frame
   poseDetectionFrame(canvasContext) {
     const {
       flipHorizontal,
       flipVertical,
-      videoWidth, 
+      videoWidth,
       videoHeight, 
       showVideo, 
       } = this.props
 
     const movenetModel = this.movenet
     const video = this.video
-
+    
+    // Function to find pose in each frame
     const findPoseDetectionFrame = async () => {
       let poses = null
 
+      // Estimate poses in the current video frame
       poses = await movenetModel.estimatePoses(video, {flipHorizontal: flipHorizontal, flipVertical: flipVertical})
       
       let normalizedKeypoints = null
       if(poses[0]) {
+        // Convert keypoints to normalized keypoints
         normalizedKeypoints = poseDetection.calculators.keypointsToNormalizedKeypoints(poses[0].keypoints, video);
       }
       
+      // If the exercise data is being saved, populate the DataFrame
       if (this.state.isSaving) {
         if(poses[0]) {
-          this.setState({ jointPositions: [...this.state.jointPositions, poses] })
-        this.populateDataFrame(normalizedKeypoints)
+          this.populateDataFrame(normalizedKeypoints)
         }
         if (!this.state.startTime) {
           this.setState({ startTime: Date.now() }) // start timer when saving begins
@@ -227,17 +247,21 @@ class Exercise extends Component {
 
       if (showVideo) {
         canvasContext.save()
+        // Scale and translate the canvas context to flip the video
         canvasContext.scale(-1, 1)
         canvasContext.translate(-videoWidth, 0)
-        canvasContext.drawImage(video, 0, 0, videoWidth, videoHeight)
-        this.renderer.drawResults(poses)
+        canvasContext.drawImage(video, 0, 0, videoWidth, videoHeight) // Draw the video on the canvas
+        this.renderer.drawResults(poses) // Draw the detected poses on the canvas
         canvasContext.restore()
       }
+      // Request the next animation frame
       requestAnimationFrame(findPoseDetectionFrame)
     } 
+    // Call the function to start pose detection
     findPoseDetectionFrame()
   }
 
+  // Method to populate the DataFrame with keypoints
   populateDataFrame(keypoints) {
     const frameData = {}
 
@@ -249,13 +273,17 @@ class Exercise extends Component {
     }
     const frameDataFrame = new DataFrame([frameData])
     this.setState({ exerciseDf: this.state.exerciseDf.append(frameDataFrame, true) }, () => {
+      // If the length of the exercise DataFrame is a multiple of 30 (one sec passed if fps=30)
       if(this.state.exerciseDf.length >= 30 && this.state.exerciseDf.length % 30 === 0) {
+        // Compare the current joint positions with the reference
         this.compareJointsWithReference()
       }
     });
   }
 
+  // Method to get the DTW value between the current and reference joint values
   getDTWCost = async (currentJointValues, referenceJointValues) => {
+    // Get the exercise information from the router state
     const exerciseInfo = this.props.router.location.state.exercise
     
     try {
@@ -263,7 +291,9 @@ class Exercise extends Component {
         referenceJointValues: referenceJointValues,
         currentJointValues: currentJointValues
       })
+
       console.log(response.data)
+
       if (response.data) {
         console.log(response.data.feedback_dtw[0])
         return response.data.feedback_dtw[0]
@@ -275,40 +305,42 @@ class Exercise extends Component {
     }
    }
   
+  // Method to compare the current joint positions with the reference
   compareJointsWithReference =  async () => {
     const currentJointPositions = this.state.exerciseDf; 
-    const currentFrameIndex = currentJointPositions.length - 1; 
+    const currentFrameIndex = currentJointPositions.length - 1; // Index of the current frame
     const referenceFrames = this.state.referenceDF.iloc([0, currentFrameIndex + 1]);
 
     let currentFeedbackMessages = [];
     console.log("frame", currentJointPositions.length, ":")
     for (const [jointName, jointIndex] of Object.entries(this.state.keypoint_dict)) {
+      // Comparing important joints only
       if (jointIndex <= 4 || jointIndex > 12) {
         continue;
       }
 
       const jointNameWithSpaces = jointName.replace(/_/g, ' ');
 
+      // Compare the x-coordinates of the current joint and the reference joint
       const col_x = jointName + '_x'
       const currentJointXValues = currentJointPositions.get(col_x).values.toArray();
       const referenceJointXValues = referenceFrames.get(col_x).values.toArray();
 
-      // const dtwX = new DTW();
-      //const costX = dtwX.compute(currentJointXValues, referenceJointXValues);
       const costX = await this.getDTWCost(currentJointXValues, referenceJointXValues);
       console.log(`cost ${jointName}_x = ${costX}`)
+      // If the cost (dissimilarity) is greater than 2.5, add feedback message
       if (costX > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} horizontally`, index: this.state.feedbackMessages.length})
       }
 
+      // Compare the y-coordinates of the current joint and the reference joint
       const col_y = jointName + '_y'
       const currentJointYValues = currentJointPositions.get(col_y).values.toArray();
       const referenceJointYValues = referenceFrames.get(col_y).values.toArray();
 
-      //const dtwY = new DTW();
-      //const costY = dtwY.compute(currentJointYValues, referenceJointYValues);
       const costY = await this.getDTWCost(currentJointYValues, referenceJointYValues);
       console.log(`cost ${jointName}_y = ${costY}`)
+      // If the cost (dissimilarity) is greater than 2.5, add feedback message
       if (costY > 2.5) {
         currentFeedbackMessages.push({message: `Adjust your ${jointNameWithSpaces} vertically`, index: this.state.feedbackMessages.length})
       }
@@ -320,11 +352,13 @@ class Exercise extends Component {
     console.log(" ")
   }
 
+  // Method to fetch the clinical score for the exercise
   fetchClinicalScore = async () => {
     const feedbackThreshold = 75
     if (this.state.feedbackMessages.length > feedbackThreshold) {
       this.setState({ clinicalScore: 100 });
     } else {
+      // Get the exercise information from the router location state
       const exerciseInfo = this.props.router.location.state.exercise
       const exerciseId = exerciseInfo.exercise_id
       console.log("Sending exercise id", exerciseId)
@@ -348,14 +382,18 @@ class Exercise extends Component {
     // Start a 10 second countdown
     let countdown = 10;
     this.setState({ countdown });
+    
+    // Create an interval that decreases the countdown every second
     const countdownInterval = setInterval(() => {
       countdown--;
       this.setState({ countdown });
+      
+      // If the countdown reaches 0, clear the interval and start the exercise
       if (countdown < 0) {
         clearInterval(countdownInterval);
-        // Start the exercise after 10 seconds
-        this.setState({ isSaving: true, isExerciseFinished: false, currentFeedbackMessages: [], feedbackMessages: [], clinicalScore: null })
-
+        this.setState({ isSaving: true, isExerciseFinished: false, exerciseDf: new DataFrame(), currentFeedbackMessages: [], feedbackMessages: [], clinicalScore: null })
+        
+        // If a reference video exists, start playing it
         if (this.referenceVideo) {
           this.setState({ referenceVideoPlaying: true, referenceVideoTime: 0 })
           this.referenceVideo.play().catch((error) => {
@@ -367,23 +405,27 @@ class Exercise extends Component {
         const exerciseTimer = setTimeout(() => {
           this.handleStopExercise();
         }, 30000);
-        this.setState({ exerciseTimer });
+        this.setState({ exerciseTimer }); // Save the timer ID in the state so it can be cleared later
       }
     }, 1000);
   }
 
   handleStopExercise = async () => {
+    // Set the final elapsed time and reset the countdown and isSaving state
     this.setState({ isSaving: false, finalElapsedTime: this.state.elapsedTime, countdown: null })
+    
     // Clear the exercise timer
     if (this.state.exerciseTimer) {
       clearTimeout(this.state.exerciseTimer);
       this.setState({ exerciseTimer: null });
     }
 
+    // Convert the exercise data frame to JSON and log it
     const json_joints = this.state.exerciseDf.to_json({orient: 'columns'})
     console.log(json_joints)
     console.log("total frames", this.state.exerciseDf.length)
     
+    // Stop the reference video
     if (this.referenceVideo) {
       this.setState({ referenceVideoPlaying: false })
       this.referenceVideo.pause()

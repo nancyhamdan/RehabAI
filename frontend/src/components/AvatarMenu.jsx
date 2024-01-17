@@ -3,6 +3,7 @@ import {Box, Avatar, Menu, MenuItem, ListItemIcon, Divider, IconButton, Tooltip}
 import {Settings, Logout} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api'
+import PersonIcon from '@mui/icons-material/Person';
 
 export default function AvatarMenu() {
   const navigateTo = useNavigate();
@@ -40,7 +41,7 @@ export default function AvatarMenu() {
             edge="end"
             sx={{ ml: 2 }}
           >
-            <Avatar>N</Avatar>
+            <PersonIcon sx={{fontSize: "2rem", color:"white"}} />
           </IconButton>
         </Tooltip>
       </Box>

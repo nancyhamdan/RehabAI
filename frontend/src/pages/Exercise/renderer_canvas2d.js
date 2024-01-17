@@ -1,3 +1,6 @@
+// code adapted for RehabAI from 
+// https://github.com/tensorflow/tfjs-models/blob/master/pose-detection/demos/live_video/src/renderer_canvas2d.js
+
 /**
  * @license
  * Copyright 2023 Google LLC.
@@ -28,7 +31,6 @@ export class RendererCanvas2d {
     
     this.videoWidth = canvas.width;
     this.videoHeight = canvas.height;
-    //this.flip(this.videoWidth);
   }
 
   flip(videoWidth) {
@@ -41,9 +43,6 @@ export class RendererCanvas2d {
     const [video, poses] = rendererParams;
     this.drawCtx(video);
 
-    // The null check makes sure the UI is not in the middle of changing to a
-    // different model. If during model change, the result is from an old model,
-    // which shouldn't be rendered.
     if (poses && poses.length > 0) {
       this.drawResults(poses);
     }

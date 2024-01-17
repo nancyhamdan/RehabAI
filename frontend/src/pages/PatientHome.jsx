@@ -7,6 +7,7 @@ import { api } from '../api';
 export default function PatientHome() {
     const [assignedExercises, setAssignedExercises] = useState([]);
 
+    // Fetch the exercises assigned to the patient
     useEffect(() => {
         api.get('/api/exercises/')
             .then(res => setAssignedExercises(res.data))
