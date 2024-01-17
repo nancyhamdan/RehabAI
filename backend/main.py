@@ -247,7 +247,7 @@ async def clinical_score(
         raise HTTPException(status_code=403, detail="Exercise not assigned to user")
 
     # Define the directory and paths for the models
-    models_directory = "DNN/"
+    models_directory = "saved-models/"
 
     model_paths = {
         "Es1": "ml_model_Es1.h5",
@@ -275,7 +275,7 @@ async def clinical_score(
     )  # csvString is the string containing the csv file
     raw_data = pd.read_csv(csvStringIO, sep=",")
     raw_data_ordered = reorder_dataframe(raw_data)
-    prepared_data = prepare_data(raw_data_ordered, max_length)
+    prepared_data = prepare_data(raw_data_ordered, max_length, exercise_id)
 
     # Make a prediction
     prediction = model.predict([prepared_data[0], prepared_data[1]])

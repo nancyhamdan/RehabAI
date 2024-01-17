@@ -1,6 +1,7 @@
 # Importing necessary libraries
 import pandas as pd
 import numpy as np
+from joint_features import get_es1_features
 
 
 # Function to get dataframe columns
@@ -41,41 +42,89 @@ all_cols = get_dataframe_cols()
 # Define the columns to be dropped
 cols_drop = all_cols[:15]
 
-
 # Function to prepare the data for machine learning model
-def prepare_data(df, max_length):
+def prepare_data(df, max_length, exercise_id):
     df = df.head(600)
-    # Initialize empty lists for data and padding masks
+    live_video_frames = df.shape[0]
+
+    # Settings for training configuration
+    smoothing_window=10
+    use_joint_positions=False
+    use_joint_features=False
+    smooth_joint_positions=False
+    smooth_joint_features=False
+    
+    if exercise_id == "Es1":
+        use_joint_features=True
+        smooth_joint_features=True
+        smoothing_window=10
+    
+    elif exercise_id == "Es2":
+        use_joint_positions=True
+
+    elif exercise_id == "Es3":
+        use_joint_positions=True
+        smooth_joint_positions=True
+        smoothing_window=10
+    
+    elif exercise_id == "Es4":
+        use_joint_positions=True
+
+    elif exercise_id == "Es5":
+        use_joint_positions=True
+        smooth_joint_positions=True
+        smoothing_window=5
+
+        
     data = []
     padding_masks = []
-    # Get the number of frames in the live video
-    live_video_frames = df.shape[0]
-    # Drop the unnecessary columns from the dataframe
-    joint_positions_data = df.drop(cols_drop, axis=1)
-    # Convert the dataframe to a numpy array
-    joint_positions_data = joint_positions_data.to_numpy()
-    # Calculate the padding length
-    padding_length = max_length - live_video_frames
-    # Create a padding mask of zeros
-    padding_mask = np.zeros((live_video_frames + padding_length))
-    # Set the last 'padding_length' elements of the padding mask to 1
-    padding_mask[-padding_length:] = 1
-    # Pad the joint positions data with zeros
-    joint_positions_data_padded = np.pad(
-        joint_positions_data,
-        ((0, padding_length), (0, 0)),
-        mode="constant",
-        constant_values=0,
-    )
-    # Append the padded data and padding mask to their respective lists
-    data.append(joint_positions_data_padded)
-    padding_masks.append(padding_mask)
-    # Convert the lists to numpy arrays
+    for _, row in df.iterrows():
+        joint_positions_path = row['joint_positions']
+        if joint_positions_path is np.NAN:
+            continue
+
+        joint_positions_data = None
+        # Load joint positions data if needed
+        if use_joint_positions:
+            joint_positions_data = df
+            joint_positions_data = joint_positions_data.drop(cols_drop, axis=1)
+            if smooth_joint_positions:
+                for col in joint_positions_data.columns:
+                    joint_positions_data[col] = joint_positions_data[col].rolling(smoothing_window).mean()
+            joint_positions_data = joint_positions_data.to_numpy()
+
+        joint_features_data = None
+        # Load joint features data if needed
+        if use_joint_features:
+            joint_features_data = get_es1_features(df)
+            if smooth_joint_features:
+                for col in joint_features_data.columns:
+                    joint_features_data[col] = joint_features_data[col].rolling(smoothing_window).mean()
+            joint_features_data = joint_features_data.to_numpy()
+
+        data_to_use = None
+        # Combine data if both are needed
+        if use_joint_positions:
+            data_to_use = joint_positions_data
+        else:
+            data_to_use = joint_features_data
+
+        # Pad data to fixed length and create padding masks
+        padding_length = max_length - live_video_frames
+        padding_mask = np.zeros((live_video_frames + padding_length))
+        padding_mask[-padding_length:] = 1 # Set padding elements to 1
+
+        # Pad data with zeros
+        data_to_use_padded = np.pad(data_to_use, ((0, padding_length), (0, 0)), mode='constant', constant_values=0)
+
+        data.append(data_to_use_padded)
+        padding_masks.append(padding_mask)
+
     data = np.array(data)
     padding_masks = np.array(padding_masks)
-    # Replace any NaN values in the data with zero
-    data = np.nan_to_num(data)
-    # Return the data and padding masks
+
+    data = np.nan_to_num(data) # Replace NaN values with numerical equivalents
+
     return (data, padding_masks)
 
 
