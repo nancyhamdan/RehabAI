@@ -7,7 +7,7 @@ services:
       - "8000:8000"
     volumes:
       # Mount saved models (optional, for persistence)
-      - ./backend/saved-models:/app/saved-models
+      - ./backend/models:/app/models
       # Mount data directory for database persistence
       - ./backend/data:/app/data
     environment:
