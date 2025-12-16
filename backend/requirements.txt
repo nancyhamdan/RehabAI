@@ -61,11 +61,10 @@ SQLAlchemy==2.0.24
 starlette==0.32.0.post1
 tensorboard==2.15.1
 tensorboard-data-server==0.7.2
-tensorflow==2.15.0.post1
+tensorflow==2.15.0
 tensorflow-estimator==2.15.0
 tensorflow-hub==0.15.0
-tensorflow-io-gcs-filesystem==0.35.0
-tensorflow-text==2.15.0
+tensorflow-io-gcs-filesystem==0.34.0
 termcolor==2.4.0
 threadpoolctl==3.2.0
 tslearn==0.6.3

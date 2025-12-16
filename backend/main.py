@@ -268,7 +268,7 @@ async def clinical_score(
     path = os.path.join(models_directory, model_paths[exercise_id])
     max_length = max_length_mapping.get(exercise_id, 0)
     print("starting model load")
-    model = tf.keras.models.load_model(path)
+    model = tf.keras.models.load_model(path, compile=False)
     print("finished model load")
 
     # Prepare the data
