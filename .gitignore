@@ -4,6 +4,10 @@ venv/
 logs
 outputs
 
+saved-models/
+backend/data/
+*.db
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
